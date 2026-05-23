@@ -4,48 +4,61 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const { product, audience, tone } = req.body;
+    const { idea, city, category } = req.body;
 
-    if (!product || !audience || !tone) {
-      return res.status(400).json({ error: "Product, audience, and tone are required" });
+    if (!idea) {
+      return res.status(400).json({ error: "Business idea is required" });
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a creative marketing assistant. Generate short, catchy marketing hooks. Return only 5 hooks, each on a new line."
-          },
-          {
-            role: "user",
-            content: `Product: ${product}\nAudience: ${audience}\nTone: ${tone}`
-          }
-        ],
-      }),
-    });
+    const query = `${idea} ${category || ""} ${city || "Riyadh"}`;
 
-    const data = await response.json();
+    const fsqResponse = await fetch(
+      `https://api.foursquare.com/v3/places/search?query=${encodeURIComponent(query)}&near=Riyadh&limit=10`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: process.env.FOURSQUARE_API_KEY,
+        },
+      }
+    );
 
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: data.error?.message || "OpenAI request failed",
+    const fsqData = await fsqResponse.json();
+
+    if (!fsqResponse.ok) {
+      return res.status(fsqResponse.status).json({
+        error: fsqData.message || "Foursquare request failed",
       });
     }
 
-    const text = data.choices?.[0]?.message?.content || "";
-    const hooks = text
-      .split("\n")
-      .map(item => item.replace(/^\d+[\).\s-]*/, "").trim())
+    const places = fsqData.results || [];
+
+    let density = "Low";
+    if (places.length >= 8) density = "High";
+    else if (places.length >= 4) density = "Medium";
+
+    const popularBrands = places
+      .slice(0, 5)
+      .map((place) => place.name)
       .filter(Boolean);
 
-    return res.status(200).json({ hooks });
+    const areas = places
+      .map((place) => place.location?.locality || place.location?.neighborhood?.[0])
+      .filter(Boolean);
+
+    const uniqueAreas = [...new Set(areas)].slice(0, 4);
+
+    return res.status(200).json({
+      density,
+      count: places.length,
+      popularBrands,
+      suggestedAreas: uniqueAreas,
+      marketInsight:
+        places.length >= 8
+          ? "This idea appears to be highly active in Riyadh. A strong niche or unique experience will be important."
+          : places.length >= 4
+          ? "This idea has visible activity in Riyadh, but there may still be room for a clear and differentiated concept."
+          : "This idea looks less crowded based on available results, which may create an opportunity for early positioning.",
+    });
   } catch (error) {
     return res.status(500).json({
       error: error.message || "Server error",
