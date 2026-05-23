@@ -36,10 +36,10 @@ export default async function handler(req, res) {
     if (places.length >= 8) density = "High";
     else if (places.length >= 4) density = "Medium";
 
-    const popularBrands = places
-      .slice(0, 5)
-      .map((place) => place.name)
-      .filter(Boolean);
+ const popularBrands = places
+  .slice(0, 6)
+  .map((place) => place.name)
+  .filter(Boolean);
 
     const areas = places
       .map((place) => place.location?.locality || place.location?.neighborhood?.[0])
