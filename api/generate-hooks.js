@@ -16,16 +16,16 @@ export default async function handler(req, res) {
 
     const query = `${idea} Riyadh`;
 
-    const fsqResponse = await fetch(
-      `https://places-api.foursquare.com/places/search?q=${encodeURIComponent(query)}&ll=24.7136,46.6753&radius=30000&limit=10`,
-      {
-        headers: {
-          accept: "application/json",
-          Authorization: process.env.FOURSQUARE_API_KEY,
-          "X-Places-Api-Version": "2025-06-17"
-        },
-      }
-    );
+const fsqResponse = await fetch(
+  `https://places-api.foursquare.com/places/search?ll=24.7136,46.6753&radius=30000&query=${encodeURIComponent(query)}&limit=5`,
+  {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${process.env.FOURSQUARE_API_KEY}`,
+      "X-Places-Api-Version": "2025-06-17"
+    },
+  }
+);
 
     const fsqData = await fsqResponse.json();
 
