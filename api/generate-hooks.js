@@ -47,18 +47,25 @@ export default async function handler(req, res) {
 
     const uniqueAreas = [...new Set(areas)].slice(0, 4);
 
-    return res.status(200).json({
-      density,
-      count: places.length,
-      popularBrands,
-      suggestedAreas: uniqueAreas,
-      marketInsight:
-        places.length >= 8
-          ? "This idea appears to be highly active in Riyadh. A strong niche or unique experience will be important."
-          : places.length >= 4
-          ? "This idea has visible activity in Riyadh, but there may still be room for a clear and differentiated concept."
-          : "This idea looks less crowded based on available results, which may create an opportunity for early positioning.",
-    });
+const topBrands = places
+  .slice(0, 5)
+  .map((place) => ({
+    name: place.name,
+    rating: place.rating || null,
+    address: place.location?.formatted_address || ""
+  }));
+
+return res.status(200).json({
+  density,
+  count: places.length,
+  topBrands,
+  marketInsight:
+    places.length >= 8
+      ? "This market looks highly active in Riyadh. A new concept needs a clear niche or unique experience."
+      : places.length >= 4
+      ? "This market has visible activity in Riyadh, but there may still be space for a differentiated idea."
+      : "This market looks less crowded based on available results, which may create an opportunity."
+});
   } catch (error) {
     return res.status(500).json({
       error: error.message || "Server error",
