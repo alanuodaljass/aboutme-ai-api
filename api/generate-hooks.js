@@ -1,23 +1,28 @@
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+      return res.status(405).json({
+        error: "Method not allowed"
+      });
     }
 
-    const { idea, city, category } = req.body;
+    const { idea } = req.body;
 
-    if (!idea) {
-      return res.status(400).json({ error: "Business idea is required" });
+    if (!idea || idea.trim() === "") {
+      return res.status(400).json({
+        error: "Business idea is required"
+      });
     }
 
-    const query = `${idea} ${category || ""} ${city || "Riyadh"}`;
+    const query = `${idea} Riyadh`;
 
     const fsqResponse = await fetch(
-      `https://api.foursquare.com/v3/places/search?query=${encodeURIComponent(query)}&near=Riyadh&limit=10`,
+      `https://places-api.foursquare.com/places/search?q=${encodeURIComponent(query)}&ll=24.7136,46.6753&radius=30000&limit=10`,
       {
         headers: {
-          Accept: "application/json",
+          accept: "application/json",
           Authorization: process.env.FOURSQUARE_API_KEY,
+          "X-Places-Api-Version": "2025-06-17"
         },
       }
     );
@@ -33,39 +38,33 @@ export default async function handler(req, res) {
     const places = fsqData.results || [];
 
     let density = "Low";
-    if (places.length >= 8) density = "High";
-    else if (places.length >= 4) density = "Medium";
 
- const popularBrands = places
-  .slice(0, 6)
-  .map((place) => place.name)
-  .filter(Boolean);
+    if (places.length >= 8) {
+      density = "High";
+    } else if (places.length >= 4) {
+      density = "Medium";
+    }
 
-    const areas = places
-      .map((place) => place.location?.locality || place.location?.neighborhood?.[0])
-      .filter(Boolean);
+    const topBrands = places
+      .slice(0, 5)
+      .map((place) => ({
+        name: place.name || "Unknown",
+        rating: place.rating || null,
+        address: place.location?.formatted_address || ""
+      }));
 
-    const uniqueAreas = [...new Set(areas)].slice(0, 4);
+    return res.status(200).json({
+      density,
+      count: places.length,
+      topBrands,
+      marketInsight:
+        places.length >= 8
+          ? "This market looks highly active in Riyadh. A strong niche or unique experience will help the idea stand out."
+          : places.length >= 4
+          ? "This market has visible activity in Riyadh, but there may still be room for a differentiated concept."
+          : "This market currently appears less crowded in Riyadh based on nearby results."
+    });
 
-const topBrands = places
-  .slice(0, 5)
-  .map((place) => ({
-    name: place.name,
-    rating: place.rating || null,
-    address: place.location?.formatted_address || ""
-  }));
-
-return res.status(200).json({
-  density,
-  count: places.length,
-  topBrands,
-  marketInsight:
-    places.length >= 8
-      ? "This market looks highly active in Riyadh. A new concept needs a clear niche or unique experience."
-      : places.length >= 4
-      ? "This market has visible activity in Riyadh, but there may still be space for a differentiated idea."
-      : "This market looks less crowded based on available results, which may create an opportunity."
-});
   } catch (error) {
     return res.status(500).json({
       error: error.message || "Server error",
